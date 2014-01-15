@@ -42,3 +42,8 @@ dialyzer: compile
 	@echo Use "'make build_plt'" to build PLT prior to using this target.
 	@echo
 	dialyzer --plt $(COMBO_PLT) ebin
+
+## temporary
+foo: compile
+	./cuttlefish -e /Users/dparfitt/basho/riak_ee/dev/dev1/bin/../etc -s /Users/dparfitt/basho/riak_ee/dev/dev1/bin/../lib -d ./data/generated.configs -c /Users/dparfitt/basho/riak_ee/dev/dev1/bin/../etc/riak.conf -l debug documentation
+

@@ -41,7 +41,8 @@ cli_options() ->
  {conf_file,          $c, "conf_file",   string,             "a cuttlefish conf file, multiple files allowed"},
  {app_config,         $a, "app_config",  string,             "the advanced erlangy app.config"},
  {log_level,          $l, "log_level",   {string, "notice"}, "log level for cuttlefish output"},
- {print_schema,       $p, "print",       undefined,          "prints schema mappings on stderr"}
+ {print_schema,       $p, "print",       undefined,          "prints schema mappings on stderr"},
+ {documentation,      $D, "documentation", undefined,        "Generate documentation"}
 ].
 
 %% LOL! I wanted this to be halt 0, but honestly, if this escript does anything
@@ -69,7 +70,6 @@ main(Args) ->
     application:load(lager),
 
     {Command, ParsedArgs, Extra} = parse_and_command(Args),
-
     SuggestedLogLevel = list_to_atom(proplists:get_value(log_level, ParsedArgs)),
     LogLevel = case lists:member(SuggestedLogLevel, [debug, info, notice, warning, error, critical, alert, emergency]) of
         true -> SuggestedLogLevel;
@@ -90,9 +90,23 @@ main(Args) ->
             effective(ParsedArgs);
         describe ->
             describe(ParsedArgs, Extra);
+        documentation ->
+            documentation(ParsedArgs);
         _Other ->
             print_help()
     end.
+
+documentation(ParsedArgs) ->
+    io:format("FOO!~n"),
+    Schema = load_schema(ParsedArgs),
+    {_, Mappings, _} = Schema,
+    lists:map(fun (M) ->
+                io:format(">>>~p: ~p~n",
+                          [cuttlefish_mapping:mapping(M),
+                           cuttlefish_mapping:doc(M)])
+              end, Mappings).
+    %io:format(user, ">>>> ~p~n", [cuttlefish_mapping:doc(Foo)]).
+    %io:format(">>>~p~n", [Mappings]).
 
 %% This shows the effective configuration, including defaults
 effective(ParsedArgs) ->
