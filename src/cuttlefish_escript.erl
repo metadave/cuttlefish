@@ -97,14 +97,17 @@ main(Args) ->
     end.
 
 documentation(ParsedArgs) ->
-    io:format("FOO!~n"),
+    erlydtl:compile("./templates/doc.dtl", section_template ),
     Schema = load_schema(ParsedArgs),
     {_, Mappings, _} = Schema,
     lists:map(fun (M) ->
-                io:format(">>>~p: ~p~n",
-                          [cuttlefish_mapping:mapping(M),
-                           cuttlefish_mapping:doc(M)])
-              end, Mappings).
+                {ok, Output} = section_template:render([
+                            { mapping, cuttlefish_mapping:mapping(M) },
+                            { docs, cuttlefish_mapping:doc(M) },
+                            { seealso, cuttlefish_mapping:see(M) },
+                            { level, cuttlefish_mapping:level(M) }]),
+                io:format("~s", [Output])
+        end, Mappings).
     %io:format(user, ">>>> ~p~n", [cuttlefish_mapping:doc(Foo)]).
     %io:format(">>>~p~n", [Mappings]).
 
