@@ -1,4 +1,4 @@
-### {{ mapping }}
+### {{ variable }}
 *({{ level }})*
 
 {{ docs }}

@@ -103,6 +103,7 @@ documentation(ParsedArgs) ->
     lists:map(fun (M) ->
                 {ok, Output} = section_template:render([
                             { mapping, cuttlefish_mapping:mapping(M) },
+                            { variable, cuttlefish_mapping:variable(M) },
                             { docs, cuttlefish_mapping:doc(M) },
                             { seealso, cuttlefish_mapping:see(M) },
                             { level, cuttlefish_mapping:level(M) }]),
