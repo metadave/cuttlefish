@@ -102,10 +102,14 @@ documentation(ParsedArgs) ->
     {_, Mappings, _} = Schema,
     lists:map(fun (M) ->
                 {ok, Output} = section_template:render([
+                            %% Not entirely sure if I have to remap out of the
+                            %% record
                             { mapping, cuttlefish_mapping:mapping(M) },
                             { variable, cuttlefish_mapping:variable(M) },
                             { docs, cuttlefish_mapping:doc(M) },
+                            { datatype, cuttlefish_mapping:datatype(M) },
                             { seealso, cuttlefish_mapping:see(M) },
+                            { default, cuttlefish_mapping:default(M) },
                             { level, cuttlefish_mapping:level(M) }]),
                 io:format("~s", [Output])
         end, Mappings).

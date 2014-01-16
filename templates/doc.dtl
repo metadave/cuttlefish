@@ -1,4 +1,1 @@
-### {{ variable }}
-*({{ level }})*
-
-{{ docs }}
+{{ variable }} | {{ default }} | {{ datatype }} | {{ docs }}
