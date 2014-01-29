@@ -55,7 +55,8 @@ generate(Config0, ReltoolFile) ->
                             %% These errors were already printed
                             error;
                         {_Translations, Mappings, _Validators} ->
-                            make_default_file(Config, TargetDir, Mappings)
+                            make_default_file(Config, TargetDir, Mappings),
+                            generate_docs(Mappings)
                     end;
 
                 false ->
@@ -70,6 +71,50 @@ generate(Config0, ReltoolFile) ->
             ok
     end,
     ok.
+
+generate_name_pair(K, V) ->
+    JoinedVal = string:join(V, "."),
+    io_lib:format("\"~s\":\"~s\"", [K, JoinedVal]).
+
+generate_pair(K, V) when is_integer(V) ->
+    io_lib:format("\"~s\":\"~p\"", [K, V]);
+generate_pair(K, [{_,_}| _] = V) ->
+    io_lib:format("\"~s\":\"~p\"", [K, V]);
+generate_pair(K, [A|_] = V) when is_list(A) orelse is_atom(A) ->
+    io_lib:format("\"~s\":\"~p\"", [K, V]);
+generate_pair(K, V) ->
+    io_lib:format("\"~s\":\"~p\"", [K, V]).
+
+generate_doc_pair(K, V) ->
+    JoinedVal = string:join(V, " "),
+    io_lib:format("\"~s\":\"~s\"", [K, JoinedVal]).
+
+
+%% yup, I'm NOT using mochijson2.
+generate_docs(Mappings) ->
+    Maps = lists:map(fun(M) ->
+                    S = string:join([
+                            generate_name_pair("name",
+                                          cuttlefish_mapping:variable(M)),
+                            generate_doc_pair("doc",
+                                          cuttlefish_mapping:doc(M)),
+                            generate_pair("default",
+                                          cuttlefish_mapping:default(M)),
+                            generate_pair("level",
+                                          cuttlefish_mapping:level(M)),
+                            generate_pair("datatype",
+                                            cuttlefish_mapping:datatype(M))],
+                            ","),
+                    "{" ++ S ++ "}"
+                    end, Mappings),
+    Maps2 = "{\"mappings\": [" ++ string:join(Maps, ",") ++ "]}",
+    io:format("~s~n", [Maps2]).
+
+%cuttlefish_mapping:doc(M),
+%cuttlefish_mapping:datatype(M),
+%cuttlefish_mapping:see(M),
+%cuttlefish_mapping:default(M),
+%cuttlefish_mapping:level(M)
 
 make_default_file(Config, TargetDir, Mappings) ->
     %% I really wanted this to default to the application name. The problem
