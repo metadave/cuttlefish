@@ -24,7 +24,8 @@
 -module(cuttlefish_rebar_plugin).
 
 -export([
-    generate/2
+    generate/2,
+    generate_docs/2
 ]).
 
 %% ===================================================================
@@ -56,7 +57,7 @@ generate(Config0, ReltoolFile) ->
                             error;
                         {_Translations, Mappings, _Validators} ->
                             make_default_file(Config, TargetDir, Mappings),
-                            generate_docs(Config, Mappings)
+                            render_templates(Config, Mappings)
                     end;
 
                 false ->
@@ -71,6 +72,50 @@ generate(Config0, ReltoolFile) ->
             ok
     end,
     ok.
+
+
+%% rector this to share code!
+generate_docs(Config0, ReltoolFile) ->
+   case should_i_run(Config0, ReltoolFile) of
+        {ok, Config, ReltoolConfig} ->
+            TargetDir = rebar_rel_utils:get_target_dir(Config, ReltoolConfig),
+
+            %% Finally, overlay the files specified by the overlay section
+            case lists:keyfind(overlay, 1, ReltoolConfig) of
+                {overlay, Overlays} when is_list(Overlays) ->
+                    SchemaOverlays = lists:filter(fun(Overlay) ->
+                            element(1, Overlay) =:= template
+                                andalso filename:extension(element(3, Overlay)) =:= ".schema"
+                        end,
+                        Overlays),
+
+                    Schemas = lists:sort([
+                        lists:flatten(filename:join(TargetDir, element(3, Schema)))
+                    || Schema <- SchemaOverlays]),
+
+                    io:format("Schema: ~p~n", [Schemas]),
+
+                    case cuttlefish_schema:files(Schemas) of
+                        {error, _Es} ->
+                            %% These errors were already printed
+                            error;
+                        {_Translations, Mappings, _Validators} ->
+                            render_templates(Config, Mappings)
+                    end;
+
+                false ->
+                    %%io:format("No {overlay, [...]} found in reltool.config.\n", []);
+                    ok;
+                _ ->
+                    io:format("{overlay, [...]} entry in reltool.config "
+                           "must be a list.\n", [])
+            end,
+            ok;
+        no ->
+            ok
+    end,
+    ok.
+
 
 %generate_name_pair(K, V) ->
 %    JoinedVal = string:join(V, "."),
@@ -90,23 +135,37 @@ generate(Config0, ReltoolFile) ->
 %    io_lib:format("\"~s\":\"~s\"", [K, JoinedVal]).
 
 
-generate_docs(Config, Mappings) ->
+render_templates(Config, Mappings) ->
     PLs = lists:foldl(fun(M, Acc) ->
                     [[
-                      {name, string:join(cuttlefish_mapping:variable(M), ".")},
-                      {segments,  cuttlefish_mapping:variable(M)},
-                      {doc,  cuttlefish_mapping:doc(M)}] | Acc ]
+                      {name,
+                       string:join(cuttlefish_mapping:variable(M), ".")},
+                      {segments,
+                       cuttlefish_mapping:variable(M)},
+                      {doc,
+                       cuttlefish_conf:pretty_doc(cuttlefish_mapping:doc(M))},
+                      {level,
+                        cuttlefish_mapping:level(M)},
+                      {default,
+                       cuttlefish_mapping:default(M)},
+                      {datatype,
+                       cuttlefish_conf:pretty_datatype(cuttlefish_mapping:datatype(M))}
+                            ] | Acc ]
             end, [], Mappings),
     CompileVars = [{mappings, PLs}],
-    io:format(user, "MAPPINGS = ~p~n", [CompileVars]),
+   %% io:format(user, "MAPPINGS = ~p~n", [CompileVars]),
     Templates = rebar_config:get(Config, cuttlefish_doc_templates, []),
-    lists:foreach(fun(File) ->
-                    case erlydtl:compile(File, docs_module) of
-                            ok -> io:format(user, "COMPILED ~p~n", [File]),
-                                  io:format(user, "VARS=~p~n",
-                                            [docs_module:variables()]),
+    lists:foreach(fun({TemplateFile, OutputFile}) ->
+                    case erlydtl:compile(TemplateFile, docs_module) of
+                            ok -> io:format(user, "COMPILED ~p~n", [TemplateFile]),
+                                  %io:format(user, "VARS=~p~n",
+                                  %          [docs_module:variables()]),
                                   {ok, Output} = docs_module:render(CompileVars),
-                                  io:format(user, "~s~n", [Output]);
+                                  %io:format(user, "~s~n", [Output]);
+                                  io:format(user, "Rendering template to ~p~n", [OutputFile]),
+                                  file:write_file(OutputFile,
+                                                  io_lib:fwrite("~s.\n",
+                                                                [Output]));
                         {error, Err} ->
                             io:format("~nCompile errror: ~p~n",[Err]),
                             Err
