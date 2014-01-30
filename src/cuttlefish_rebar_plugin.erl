@@ -119,11 +119,8 @@ render_templates(Config, Mappings) ->
                     ModName = lists:flatten(io_lib:format("docs_module_~p", [FileId])),
                     Mod = erlang:list_to_atom(ModName),
                     case erlydtl:compile(TemplateFile, Mod) of
-                            ok -> io:format(user, "COMPILED ~p~n", [TemplateFile]),
-                                  %io:format(user, "VARS=~p~n",
-                                  %          [docs_module:variables()]),
+                            ok -> io:format(user, "Compiling template ~p~n", [TemplateFile]),
                                   {ok, Output} = Mod:render(CompileVars),
-                                  %io:format(user, "~s~n", [Output]);
                                   io:format(user, "Rendering template to ~p~n", [OutputFile]),
                                   file:write_file(OutputFile,
                                                   io_lib:fwrite("~s.\n",
