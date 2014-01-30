@@ -56,7 +56,7 @@ generate(Config0, ReltoolFile) ->
                             error;
                         {_Translations, Mappings, _Validators} ->
                             make_default_file(Config, TargetDir, Mappings),
-                            generate_docs(Mappings)
+                            generate_docs(Config, Mappings)
                     end;
 
                 false ->
@@ -72,49 +72,48 @@ generate(Config0, ReltoolFile) ->
     end,
     ok.
 
-generate_name_pair(K, V) ->
-    JoinedVal = string:join(V, "."),
-    io_lib:format("\"~s\":\"~s\"", [K, JoinedVal]).
+%generate_name_pair(K, V) ->
+%    JoinedVal = string:join(V, "."),
+%    io_lib:format("\"~s\":\"~s\"", [K, JoinedVal]).
+%
+%generate_pair(K, V) when is_integer(V) ->
+%    io_lib:format("\"~s\":\"~p\"", [K, V]);
+%generate_pair(K, [{_,_}| _] = V) ->
+%    io_lib:format("\"~s\":\"~p\"", [K, V]);
+%generate_pair(K, [A|_] = V) when is_list(A) orelse is_atom(A) ->
+%    io_lib:format("\"~s\":\"~p\"", [K, V]);
+%generate_pair(K, V) ->
+%    io_lib:format("\"~s\":\"~p\"", [K, V]).
+%
+%generate_doc_pair(K, V) ->
+%    JoinedVal = string:join(V, " "),
+%    io_lib:format("\"~s\":\"~s\"", [K, JoinedVal]).
 
-generate_pair(K, V) when is_integer(V) ->
-    io_lib:format("\"~s\":\"~p\"", [K, V]);
-generate_pair(K, [{_,_}| _] = V) ->
-    io_lib:format("\"~s\":\"~p\"", [K, V]);
-generate_pair(K, [A|_] = V) when is_list(A) orelse is_atom(A) ->
-    io_lib:format("\"~s\":\"~p\"", [K, V]);
-generate_pair(K, V) ->
-    io_lib:format("\"~s\":\"~p\"", [K, V]).
 
-generate_doc_pair(K, V) ->
-    JoinedVal = string:join(V, " "),
-    io_lib:format("\"~s\":\"~s\"", [K, JoinedVal]).
-
-
-%% yup, I'm NOT using mochijson2.
-generate_docs(Mappings) ->
-    Maps = lists:map(fun(M) ->
-                    S = string:join([
-                            generate_name_pair("name",
-                                          cuttlefish_mapping:variable(M)),
-                            generate_doc_pair("doc",
-                                          cuttlefish_mapping:doc(M)),
-                            generate_pair("default",
-                                          cuttlefish_mapping:default(M)),
-                            generate_pair("level",
-                                          cuttlefish_mapping:level(M)),
-                            generate_pair("datatype",
-                                            cuttlefish_mapping:datatype(M))],
-                            ","),
-                    "{" ++ S ++ "}"
-                    end, Mappings),
-    Maps2 = "{\"mappings\": [" ++ string:join(Maps, ",") ++ "]}",
-    io:format("~s~n", [Maps2]).
-
-%cuttlefish_mapping:doc(M),
-%cuttlefish_mapping:datatype(M),
-%cuttlefish_mapping:see(M),
-%cuttlefish_mapping:default(M),
-%cuttlefish_mapping:level(M)
+generate_docs(Config, Mappings) ->
+    PLs = lists:foldl(fun(M, Acc) ->
+                    [[
+                      {name, string:join(cuttlefish_mapping:variable(M), ".")},
+                      {segments,  cuttlefish_mapping:variable(M)},
+                      {doc,  cuttlefish_mapping:doc(M)}] | Acc ]
+            end, [], Mappings),
+    CompileVars = [{mappings, PLs}],
+    io:format(user, "MAPPINGS = ~p~n", [CompileVars]),
+    Templates = rebar_config:get(Config, cuttlefish_doc_templates, []),
+    lists:foreach(fun(File) ->
+                    case erlydtl:compile(File, docs_module) of
+                            ok -> io:format(user, "COMPILED ~p~n", [File]),
+                                  io:format(user, "VARS=~p~n",
+                                            [docs_module:variables()]),
+                                  {ok, Output} = docs_module:render(CompileVars),
+                                  io:format(user, "~s~n", [Output]);
+                        {error, Err} ->
+                            io:format("~nCompile errror: ~p~n",[Err]),
+                            Err
+                    end,
+                   ok end,
+                Templates),
+    ok.
 
 make_default_file(Config, TargetDir, Mappings) ->
     %% I really wanted this to default to the application name. The problem
